@@ -41,6 +41,21 @@ def show_config(args):
     client.disconnect(send_close=True)
     return 0
 
+def get_current_activity_name(args):
+    """Get current activity and print its name"""
+    token = login_to_logitech(args)
+    client = harmony_client.create_and_connect_client(
+        args.harmony_ip, args.harmony_port, token)
+    activities = client.get_config()['activity']
+    current_activity_id = client.get_current_activity()
+
+    for t in activities:
+        if int(t['id']) == int(current_activity_id):
+            print t['label']
+
+    client.disconnect(send_close=True)
+    return 0
+
 
 def main():
     """Main method for the script."""
@@ -69,6 +84,11 @@ def main():
     list_devices_parser = subparsers.add_parser(
         'show_config', help='Print the Harmony device configuration.')
     list_devices_parser.set_defaults(func=show_config)
+
+    get_current_activity_name_parser = subparsers.add_parser(
+        'get_current_activity_name', help='Print the Harmony device configuration.')
+    get_current_activity_name_parser.set_defaults(func=get_current_activity_name)
+    
 
     args = parser.parse_args()
 
