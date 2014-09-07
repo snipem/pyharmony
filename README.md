@@ -24,9 +24,23 @@ To query your device's configuration state:
     PYTHONPATH="." python harmony --email user@example.com --password pass \
         --harmony_ip 192.168.0.1 show_config
 
+It really helps to assign a static lease and hostname for your harmony
+on your router interface, so you don't have to keep looking up the IP.
+
+Some other commands you can invoke via command line:
+
+    PYTHONPATH="." python harmony --email user@example.com --password pass \
+        --harmony_ip my_hub_host start_activity 'watch movie'
+
+    PYTHONPATH="." python harmony --email user@example.com --password pass \
+        --harmony_ip my_hub_host sync
+
+    PYTHONPATH="." python harmony --email user@example.com --password pass \
+        --harmony_ip my_hub_host show_current_activity
+
 For full argument information on the command-line tool:
 
-    PYTHONPATH="." python harmony
+    PYTHONPATH="." python harmony --help
 
 TODO
 ----

@@ -4,12 +4,13 @@
 
 import argparse
 import logging
-import pprint
+import json
 import sys
 
 from harmony import auth
 from harmony import client as harmony_client
 
+LOGGER = logging.getLogger(__name__)
 
 def login_to_logitech(args):
     """Logs in to the Logitech service.
@@ -31,13 +32,45 @@ def login_to_logitech(args):
 
     return session_token
 
+def pprint(obj):
+    """Pretty JSON dump of an object."""
+    print(json.dumps(obj, sort_keys=True, indent=4, separators=(',', ': ')))
 
-def show_config(args):
-    """Connects to the Harmony and prints its configuration."""
+def get_client(args):
+    """Connect to the Harmony and return a Client instance."""
     token = login_to_logitech(args)
     client = harmony_client.create_and_connect_client(
         args.harmony_ip, args.harmony_port, token)
-    pprint.pprint(client.get_config())
+    return client
+
+def show_config(args):
+    """Connects to the Harmony and prints its configuration."""
+    client = get_client(args)
+    pprint(client.get_config())
+    client.disconnect(send_close=True)
+    return 0
+
+def show_current_activity(args):
+    """Connects to the Harmony and prints the current activity block
+    from the config."""
+    client = get_client(args)
+    config = client.get_config()
+    current_activity_id = client.get_current_activity()
+
+    activity = [x for x in config['activity'] if int(x['id']) == current_activity_id][0]
+
+    pprint(activity)
+
+    client.disconnect(send_close=True)
+    return 0
+
+def sync(args):
+    """Connects to the Harmony and syncs it.
+    """
+    client = get_client(args)
+
+    client.sync()
+
     client.disconnect(send_close=True)
     return 0
 
@@ -56,6 +89,31 @@ def get_current_activity_name(args):
     client.disconnect(send_close=True)
     return 0
 
+def start_activity(args):
+    """Connects to the Harmony and switches to a different activity,
+    specified as an id or label."""
+    client = get_client(args)
+
+    config = client.get_config()
+
+    activity = [x for x in config['activity']
+        if (args.activity.isdigit() and int(x['id']) == int(args.activity))
+            or x['label'].lower() == args.activity.lower()
+    ]
+
+    if not activity:
+        LOGGER.error('could not find activity: ' + args.activity)
+        client.disconnect(send_close=True)
+        return 1
+
+    activity = activity[0]
+
+    client.start_activity(activity['id'])
+
+    LOGGER.info("started activity: '%s' of id: '%s'"%(activity['label'], activity['id']))
+
+    client.disconnect(send_close=True)
+    return 0
 
 def main():
     """Main method for the script."""
@@ -81,9 +139,27 @@ def main():
         help='Logging level to print to the console.')
 
     subparsers = parser.add_subparsers()
-    list_devices_parser = subparsers.add_parser(
+
+    show_config_parser = subparsers.add_parser(
         'show_config', help='Print the Harmony device configuration.')
-    list_devices_parser.set_defaults(func=show_config)
+    show_config_parser.set_defaults(func=show_config)
+
+    show_activity_parser = subparsers.add_parser(
+        'show_current_activity', help='Print the current activity config.')
+    show_activity_parser.set_defaults(func=show_current_activity)
+
+    start_activity_parser = subparsers.add_parser(
+        'start_activity', help='Switch to a different activity.')
+
+    start_activity_parser.add_argument(
+        'activity', help='Activity to switch to, id or label.')
+
+    start_activity_parser.set_defaults(func=start_activity)
+
+    sync_parser = subparsers.add_parser(
+        'sync', help='Sync the harmony.')
+
+    sync_parser.set_defaults(func=sync)
 
     get_current_activity_name_parser = subparsers.add_parser(
         'get_current_activity_name', help='Print the Harmony device configuration.')
@@ -94,10 +170,9 @@ def main():
 
     logging.basicConfig(
         level=loglevels[args.loglevel],
-        format='%(levelname)s\t%(name)s\t%(message)s')
+        format='%(levelname)s:\t%(name)s\t%(message)s')
 
     sys.exit(args.func(args))
-
 
 if __name__ == '__main__':
     main()
